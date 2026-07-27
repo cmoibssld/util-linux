@@ -17,9 +17,10 @@ use std::os::fd::AsFd;
 use std::string::FromUtf8Error;
 use thiserror::Error;
 
+use uucore::error::{UError, UResult};
 #[cfg(unix)]
 use uucore::{
-    error::{UError, UResult, USimpleError},
+    error::USimpleError,
     format_usage,
     translate, // unused at the moment...
     utmpx::Utmpx,
@@ -27,7 +28,9 @@ use uucore::{
 
 const STRING: &str = "string";
 const OPT_GROUP: &str = "group";
+#[cfg(target_os = "linux")]
 const OPT_NOBANNER: &str = "nobanner";
+#[cfg(target_os = "linux")]
 const OPT_TIMEOUT: &str = "timeout";
 
 #[derive(Error, Debug)]
@@ -51,7 +54,7 @@ impl UError for WallError {
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches = uucore::clap_localization::handle_clap_result(uu_app(), args)
         .map_err(|e| USimpleError::new(1, e.to_string()))?; // Clap would have return 101
-    // Might be considered wrong for --help and --version
+                                                            // Might be considered wrong for --help and --version
     let message = get_message(matches.get_many(STRING).unwrap_or_default())?;
     let users = find_logged_users();
     write_to_terminals(message, users)?;
@@ -60,8 +63,7 @@ pub fn uumain(args: impl uucore::Args) -> UResult<()> {
 
 #[cfg(not(target_family = "unix"))]
 #[uucore::main(no_signals)]
-pub fn uumain(args: impl uucore::Args) -> UResult<()> {
-    let _matches: ArgMatches = uu_app().try_get_matches_from(args)?;
+pub fn uumain(_args: impl uucore::Args) -> UResult<()> {
     Err(uucore::error::USimpleError::new(
         1,
         "`wall` is available only on Unix platforms.",
@@ -139,11 +141,12 @@ pub fn uu_app() -> Command {
         )
 }
 
+#[cfg(target_family = "unix")]
 fn get_message(args: ValuesRef<OsString>) -> Result<String, WallError> {
     if args.len() == 0 {
         read_from_stdin()
     } else if args.len() == 1 {
-        match read_from_file(args.clone().into_iter().next().unwrap()) {
+        match read_from_file(args.clone().next().unwrap()) {
             Ok(str) => Ok(str),
             Err(_e) => {
                 #[cfg(target_os = "linux")]
@@ -157,6 +160,7 @@ fn get_message(args: ValuesRef<OsString>) -> Result<String, WallError> {
     }
 }
 
+#[cfg(target_family = "unix")]
 fn read_from_stdin() -> Result<String, WallError> {
     let mut buffer = Vec::new();
     io::stdin().read_to_end(&mut buffer)?;
@@ -164,6 +168,7 @@ fn read_from_stdin() -> Result<String, WallError> {
     Ok(res)
 }
 
+#[cfg(target_family = "unix")]
 fn read_from_file(file: &OsString) -> Result<String, WallError> {
     let mut buffer = Vec::new();
     let mut file = std::fs::File::open(file)?;
@@ -172,6 +177,7 @@ fn read_from_file(file: &OsString) -> Result<String, WallError> {
     Ok(res)
 }
 
+#[cfg(target_family = "unix")]
 fn concatenate_message(args: ValuesRef<OsString>) -> Result<String, WallError> {
     let mut res = String::new();
     for arg in args {
@@ -182,6 +188,7 @@ fn concatenate_message(args: ValuesRef<OsString>) -> Result<String, WallError> {
     Ok(res)
 }
 
+#[cfg(target_family = "unix")]
 fn find_logged_users() -> Vec<OsString> {
     let mut res = Vec::<OsString>::new();
     for ut in Utmpx::iter_all_records() {
@@ -194,6 +201,7 @@ fn find_logged_users() -> Vec<OsString> {
     res
 }
 
+#[cfg(target_family = "unix")]
 fn wall_intro_message() -> String {
     let user = "USER";
     let biding = unistd::gethostname().unwrap_or_else(|_| "".into());
@@ -218,11 +226,17 @@ fn wall_intro_message() -> String {
     );
 }
 
+#[cfg(target_family = "unix")]
 fn write_to_terminals(message: String, users: Vec<OsString>) -> UResult<()> {
-    let mut format_message = message.replace("\n", "\r\n\n");
     #[cfg(target_os = "linux")]
-    format_message.push_str("\r\n\n");
-    let transmission = wall_intro_message() + &format_message;
+    let mut formatted_message = message.replace('\n', "\r\n\n");
+    #[cfg(target_os = "linux")]
+    formatted_message.push_str("\r\n\n");
+
+    #[cfg(not(target_os = "linux"))]
+    let formatted_message = message.replace('\n', "\r\n\n");
+
+    let transmission = format!("{}{}", wall_intro_message(), formatted_message);
     for user in users {
         let mut file = match std::fs::OpenOptions::new().write(true).open(user) {
             Ok(f) => f,
