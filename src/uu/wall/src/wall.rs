@@ -51,7 +51,7 @@ impl UError for WallError {
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches = uucore::clap_localization::handle_clap_result(uu_app(), args)
         .map_err(|e| USimpleError::new(1, e.to_string()))?; // Clap would have return 101
-                                                            // Might be considered wrong for --help and --version
+    // Might be considered wrong for --help and --version
     let message = get_message(matches.get_many(STRING).unwrap_or_default())?;
     let users = find_logged_users();
     write_to_terminals(message, users)?;
@@ -149,7 +149,7 @@ fn get_message(args: ValuesRef<OsString>) -> Result<String, WallError> {
                 #[cfg(target_os = "linux")]
                 return concatenate_message(args);
                 #[cfg(not(target_os = "linux"))]
-                return _e;
+                return Err(_e);
             }
         }
     } else {
