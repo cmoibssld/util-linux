@@ -19,7 +19,7 @@ use thiserror::Error;
 
 #[cfg(unix)]
 use uucore::{
-    error::{UError, UResult},
+    error::{UError, UResult, USimpleError},
     format_usage,
     translate, // unused at the moment...
     utmpx::Utmpx,
@@ -30,34 +30,14 @@ const OPT_GROUP: &str = "group";
 const OPT_NOBANNER: &str = "nobanner";
 const OPT_TIMEOUT: &str = "timeout";
 
-#[cfg(target_os = "macos")]
-mod options {
-    use super::OPT_GROUP; // module don't automatically has access to const of parent
-
-    pub const VALID_SHORT: &[char] = &['g'];
-    pub const VALID_LONG: &[&str] = &[OPT_GROUP];
-}
-
-#[cfg(target_os = "linux")]
-mod options {
-    use super::{OPT_GROUP, OPT_NOBANNER, OPT_TIMEOUT};
-
-    pub const VALID_SHORT: &[char] = &['g', 'n', 't'];
-    pub const VALID_LONG: &[&str] = &[OPT_GROUP, OPT_NOBANNER, OPT_TIMEOUT];
-}
-
 #[derive(Error, Debug)]
 enum WallError {
-    #[error("wall: invalid argument")]
-    ArgError,
     #[error("wall: cannot read stdin")]
     Stdin(#[from] io::Error),
     #[error("wall: encoding error")]
     VecToString(#[from] FromUtf8Error),
     #[error("wall: osstring conversion failed")]
     ToStringError,
-    #[error("wall is not supported on windows")]
-    WindowsError,
 }
 
 impl UError for WallError {
@@ -69,16 +49,9 @@ impl UError for WallError {
 #[cfg(target_family = "unix")]
 #[uucore::main(no_signals)]
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
-    #[cfg(windows)]
-    return Err(io::Error::new(WallError::WindowsError));
-    let args = args.skip(1).peekable();
-    match args_pre_scan(&args) {
-        Ok(_) => {}
-        Err(e) => {
-            return Err(WallError::ArgError);
-        }
-    }
-    let matches = uucore::clap_localization::handle_clap_result(uu_app(), args)?;
+    let matches = uucore::clap_localization::handle_clap_result(uu_app(), args)
+        .map_err(|e| USimpleError::new(1, e.to_string()))?; // Clap would have return 101
+                                                            // Might be considered wrong for --help and --version
     let message = get_message(matches.get_many(STRING).unwrap_or_default())?;
     let users = find_logged_users();
     write_to_terminals(message, users)?;
@@ -166,21 +139,19 @@ pub fn uu_app() -> Command {
         )
 }
 
-fn args_pre_scan(args: &ValuesRef<OsString>) -> Result<(), String> {
-    for arg in args {
-        let arg = arg.to_string_lossy();
-        if arg == "--" {
-            break;
-        }
-    }
-    Ok(())
-}
-
 fn get_message(args: ValuesRef<OsString>) -> Result<String, WallError> {
     if args.len() == 0 {
         read_from_stdin()
     } else if args.len() == 1 {
-        read_from_file(args.into_iter().next().unwrap())
+        match read_from_file(args.clone().into_iter().next().unwrap()) {
+            Ok(str) => Ok(str),
+            Err(_e) => {
+                #[cfg(target_os = "linux")]
+                return concatenate_message(args);
+                #[cfg(not(target_os = "linux"))]
+                return _e;
+            }
+        }
     } else {
         concatenate_message(args)
     }
@@ -233,15 +204,24 @@ fn wall_intro_message() -> String {
     let tty = &get_sender();
 
     let datetime = get_hour_and_date();
-    format!(
-        "\r\nBroadcast message from {}@{} ({tty}) at ({datetime}) \r\n\r\n",
+    #[cfg(target_os = "macos")]
+    return format!(
+        "\r\nBroadcast message from {}@{} ({tty}) at ({datetime} \r\n\r\n",
         user.to_string_lossy(),
         hostname
-    )
+    );
+    #[cfg(target_os = "linux")]
+    return format!(
+        "\r\nBroadcast message from {}@{} ({tty}) ({datetime}) \r\n\r\n",
+        user.to_string_lossy(),
+        hostname
+    );
 }
 
 fn write_to_terminals(message: String, users: Vec<OsString>) -> UResult<()> {
-    let format_message = message.replace("\n", "\r\n\n");
+    let mut format_message = message.replace("\n", "\r\n\n");
+    #[cfg(target_os = "linux")]
+    format_message.push_str("\r\n\n");
     let transmission = wall_intro_message() + &format_message;
     for user in users {
         let mut file = match std::fs::OpenOptions::new().write(true).open(user) {
@@ -261,7 +241,7 @@ fn write_to_terminals(message: String, users: Vec<OsString>) -> UResult<()> {
 
 #[cfg(target_os = "linux")]
 fn get_hour_and_date() -> String {
-    chrono::Local::now().format("%a %b %e %H:%M %Z").to_string()
+    chrono::Local::now().format("%a %b %e %H:%M %Y").to_string()
 }
 
 #[cfg(target_os = "macos")]
@@ -269,9 +249,20 @@ fn get_hour_and_date() -> String {
     chrono::Local::now().format("%a %b %e %H:%M %Z").to_string()
 }
 
+#[cfg(target_os = "macos")]
 fn get_sender() -> String {
     unistd::ttyname(std::io::stdin().as_fd())
         .unwrap_or_else(|_| "".into())
         .to_string_lossy()
+        .to_string()
+}
+
+#[cfg(target_os = "linux")]
+fn get_sender() -> String {
+    unistd::ttyname(std::io::stdin().as_fd())
+        .unwrap_or_else(|_| "".into())
+        .to_string_lossy()
+        .strip_prefix("/dev/") // Wall doesn't print /dev/ after tty name, but might not be the way it does it
+        .unwrap_or("")
         .to_string()
 }

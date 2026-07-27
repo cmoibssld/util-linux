@@ -12,12 +12,19 @@ fn test_invalid_arg() {
     new_ucmd!().arg("--definitely-invalid").fails().code_is(1);
 }
 
+#[cfg(target_os = "linux")]
+#[test]
+fn test_invalid_file() {
+    new_ucmd!().arg("not_existing_file.not_existing_extension"); // Should print non-file name as broadcast
+}
+
+#[cfg(target_os = "macos")]
 #[test]
 fn test_invalid_file() {
     new_ucmd!()
         .arg("not_existing_file.not_existing_extension")
         .fails()
-        .code_is(1);
+        .code_is(1); // On macOS, file not existing is an error
 }
 
 // wall does not print the content of the file in the stdout, it sends it to the tty(s)
