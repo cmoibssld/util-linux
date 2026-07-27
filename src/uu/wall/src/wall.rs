@@ -5,6 +5,8 @@
 
 use clap::builder::ValueParser;
 use clap::parser::ValuesRef;
+#[cfg(not(unix))]
+use clap::ArgMatches;
 use clap::{Arg, ArgAction, Command};
 #[cfg(unix)]
 use nix::unistd;
@@ -17,13 +19,11 @@ use std::os::fd::AsFd;
 use std::string::FromUtf8Error;
 use thiserror::Error;
 
-use uucore::error::{UError, UResult};
 #[cfg(unix)]
+use uucore::{error::USimpleError, utmpx::Utmpx};
 use uucore::{
-    error::USimpleError,
-    format_usage,
-    translate, // unused at the moment...
-    utmpx::Utmpx,
+    error::{UError, UResult},
+    format_usage, translate,
 };
 
 const STRING: &str = "string";
@@ -63,7 +63,8 @@ pub fn uumain(args: impl uucore::Args) -> UResult<()> {
 
 #[cfg(not(target_family = "unix"))]
 #[uucore::main(no_signals)]
-pub fn uumain(_args: impl uucore::Args) -> UResult<()> {
+pub fn uumain(args: impl uucore::Args) -> UResult<()> {
+    let _matches: ArgMatches = uu_app().try_get_matches_from(args)?;
     Err(uucore::error::USimpleError::new(
         1,
         "`wall` is available only on Unix platforms.",
@@ -115,7 +116,7 @@ pub fn uu_app() -> Command {
         )
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(not(target_os = "linux"))]
 pub fn uu_app() -> Command {
     Command::new("wall")
         .version(uucore::crate_version!())
