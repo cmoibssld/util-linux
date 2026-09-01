@@ -432,6 +432,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "dns-lookup"
+version = "4.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6120e7e5dcd1c90098e349def389e2797377cdbe6b465ad8fdd115c0c99d5cf2"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "socket2",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "dunce"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1107,9 +1119,9 @@ checksum = "0c8d0fd677905edcbeedbf2edb6494d676f0e98d54d5cf9bda0b061cb8fb8aba"
 
 [[package]]
 name = "rangemap"
-version = "1.7.1"
+version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "973443cf09a9c8656b574a866ab68dfa19f0867d0340648c7d2f6a71b8a8ea68"
+checksum = "a611d15b50743feb4c76b7d03edcb0e64f399c26961e4efe6975bc398be6aa3d"
 
 [[package]]
 name = "regex"
@@ -1526,7 +1538,7 @@ dependencies = [
  "clap_complete",
  "clap_mangen",
  "ctor",
- "dns-lookup",
+ "dns-lookup 4.0.1",
  "libc",
  "nix 0.31.3",
  "parse_datetime",
@@ -1648,7 +1660,7 @@ name = "uu_last"
 version = "0.0.1"
 dependencies = [
  "clap",
- "dns-lookup",
+ "dns-lookup 4.0.1",
  "parse_datetime",
  "uucore 0.2.2",
 ]
@@ -1810,7 +1822,7 @@ dependencies = [
  "bigdecimal",
  "bstr",
  "clap",
- "dns-lookup",
+ "dns-lookup 3.0.1",
  "fluent",
  "fluent-bundle",
  "fluent-syntax",
@@ -1835,7 +1847,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e97dd0fd8bb2ed12affba9f956c3b94b8ad3f9432746717475420e916ae0b8d4"
 dependencies = [
  "clap",
- "dns-lookup",
+ "dns-lookup 3.0.1",
  "fluent",
  "fluent-syntax",
  "jiff",
@@ -1882,9 +1894,9 @@ checksum = "9c9e4945611996e885dc4eeae23f3d6f20cfb6e8f4bad4985c2222bbcf9a9745"
 
 [[package]]
 name = "uuid"
-version = "1.24.0"
+version = "1.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf3923a6f5c4c6382e0b653c4117f48d631ea17f38ed86e2a828e6f7412f5239"
+checksum = "b5772d71c9be8a8a6ac2117d949c5b224c1b72241bb611d9a3012edcf8af7812"
 dependencies = [
  "atomic",
  "getrandom",
@@ -1898,9 +1910,9 @@ dependencies = [
 
 [[package]]
 name = "uuid-rng-internal"
-version = "1.24.0"
+version = "1.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9dff7387287837acf196f2596a6216f94c555d947d5331e1cc48393131020119"
+checksum = "ee9ad27c58031a66157ac3b5c93e65068357eeeaceaa658a6163d4e5befb4a06"
 dependencies = [
  "rand",
 ]
