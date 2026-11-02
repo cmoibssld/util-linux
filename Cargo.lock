@@ -1772,7 +1772,7 @@ version = "0.0.1"
 dependencies = [
  "chrono",
  "clap",
- "nix 0.31.3",
+ "nix 0.30.1",
  "thiserror",
  "uucore 0.2.2",
 ]

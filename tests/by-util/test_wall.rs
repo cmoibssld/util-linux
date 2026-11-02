@@ -20,7 +20,9 @@ fn unsupported_feature() {
 #[cfg(target_os = "linux")]
 #[test]
 fn test_invalid_file() {
-    new_ucmd!().arg("not_existing_file.not_existing_extension"); // Should print non-file name as broadcast
+    new_ucmd!()
+        .arg("not_existing_file.not_existing_extension")
+        .succeeds(); // Should print non-file name as broadcast
 }
 
 #[cfg(target_os = "macos")]
