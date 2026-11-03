@@ -17,8 +17,6 @@ fn test_column_headers() {
 
     assert_eq!(
         cols,
-        [
-            "COMMAND", "PID", "TYPE", "SIZE", "MODE", "M", "START", "END", "PATH"
-        ]
+        ["COMMAND", "PID", "TYPE", "SIZE", "MODE", "M", "START", "END", "PATH"]
     );
 }
