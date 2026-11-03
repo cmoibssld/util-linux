@@ -3,15 +3,15 @@
 // For the full copyright and license information, please view the LICENSE
 // file that was distributed with this source code.
 
-use clap::builder::ValueParser;
-use clap::parser::ValuesRef;
 #[cfg(not(unix))]
 use clap::ArgMatches;
+use clap::builder::ValueParser;
+use clap::parser::ValuesRef;
 use clap::{Arg, ArgAction, Command};
 #[cfg(unix)]
 use nix::{
     libc,
-    poll::{poll, PollFd, PollFlags, PollTimeout},
+    poll::{PollFd, PollFlags, PollTimeout, poll},
     unistd,
 };
 use std::env;
@@ -62,8 +62,15 @@ impl UError for WallError {
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches = uucore::clap_localization::handle_clap_result(uu_app(), args)?; // Clap would have return 101
     let message = get_message(matches.get_many(STRING).unwrap_or_default())?;
+    #[cfg(target_os = "linux")]
     let option_n = matches.get_flag(OPT_NOBANNER);
+    #[cfg(not(target_os = "linux"))]
+    let option_n = false;
+
+    #[cfg(target_os = "linux")]
     let timeout = *matches.get_one::<u16>(OPT_TIMEOUT).unwrap();
+    #[cfg(not(target_os = "linux"))]
+    let timeout = 30;
     let users = find_logged_users();
     let message = formatted_message(message, !option_n);
     write_to_terminals(users, &message, timeout)?;
@@ -236,7 +243,7 @@ fn wall_intro_message() -> String {
         "\r\nBroadcast message from {}@{} ({tty}) at ({datetime}) \r\n\r\n",
         user, hostname
     );
-    #[cfg(target_os = "linux")]
+    #[cfg(not(target_os = "macos"))]
     return format!(
         "\r\nBroadcast message from {}@{} ({tty}) ({datetime}) \r\n\r\n",
         user, hostname
@@ -252,10 +259,10 @@ fn formatted_message(message: String, banner: bool) -> String {
     // Same here, control characters could also be hidden in the message provided. We still want newline char of course...
     #[cfg(target_os = "linux")]
     let mut formatted_message = formatted_message.replace('\n', "\r\n\n");
-    #[cfg(target_os = "linux")]
+    #[cfg(not(target_os = "macos"))]
     formatted_message.push_str("\r\n\n");
 
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "macos")]
     let formatted_message = formatted_message.replace('\n', "\r\n\n");
 
     let transmission = if banner {
@@ -266,13 +273,14 @@ fn formatted_message(message: String, banner: bool) -> String {
     transmission
 }
 
-#[cfg(target_family = "unix")]
+#[cfg(unix)]
 struct Terminal {
     file: std::fs::File,
     written: usize,
     failed: bool,
 }
 
+#[cfg(unix)]
 impl Terminal {
     fn new(file: std::fs::File) -> Self {
         Terminal {
@@ -373,7 +381,7 @@ fn get_sender() -> String {
         .to_string()
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "macos"))]
 fn get_sender() -> String {
     unistd::ttyname(std::io::stdin().as_fd())
         .unwrap_or_else(|_| "".into())
