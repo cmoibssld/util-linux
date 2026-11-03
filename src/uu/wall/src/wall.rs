@@ -4,6 +4,7 @@
 // file that was distributed with this source code.
 
 use clap::builder::ValueParser;
+#[cfg(unix)]
 use clap::parser::ValuesRef;
 #[cfg(not(unix))]
 use clap::ArgMatches;
@@ -15,21 +16,26 @@ use nix::{
     unistd,
 };
 use std::env;
+#[cfg(unix)]
 use std::ffi::OsString;
+#[cfg(unix)]
 use std::io;
+#[cfg(unix)]
 use std::io::prelude::*;
 #[cfg(unix)]
 use std::os::fd::AsFd;
+#[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
+#[cfg(unix)]
 use std::string::FromUtf8Error;
+#[cfg(unix)]
 use thiserror::Error;
 
 #[cfg(unix)]
+use uucore::error::{UError, USimpleError};
+#[cfg(unix)]
 use uucore::utmpx::Utmpx;
-use uucore::{
-    error::{UError, UResult, USimpleError},
-    format_usage, translate,
-};
+use uucore::{error::UResult, format_usage, translate};
 
 const STRING: &str = "string";
 // TODO(FEAT): Option for wall
@@ -39,6 +45,7 @@ const OPT_NOBANNER: &str = "nobanner";
 #[cfg(target_os = "linux")]
 const OPT_TIMEOUT: &str = "timeout";
 
+#[cfg(unix)]
 #[derive(Error, Debug)]
 enum WallError {
     #[error("I/O error")]
@@ -51,6 +58,7 @@ enum WallError {
     TimeoutError,
 }
 
+#[cfg(unix)]
 impl UError for WallError {
     fn code(&self) -> i32 {
         1
@@ -170,7 +178,7 @@ fn get_message(args: ValuesRef<OsString>) -> Result<String, WallError> {
                 #[cfg(target_os = "linux")]
                 return concatenate_message(args);
                 #[cfg(not(target_os = "linux"))]
-                return Err(e);
+                return Err(WallError::IOerr(e));
             }
             Err(e) => Err(e),
         }
@@ -363,7 +371,8 @@ fn add_users_terminal(users: &Vec<OsString>) -> Vec<Terminal> {
     ttys
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(unix)]
+#[cfg(not(target_os = "macos"))]
 fn get_hour_and_date() -> String {
     chrono::Local::now().format("%a %b %e %H:%M %Y").to_string()
 }
@@ -381,6 +390,7 @@ fn get_sender() -> String {
         .to_string()
 }
 
+#[cfg(unix)]
 #[cfg(not(target_os = "macos"))]
 fn get_sender() -> String {
     unistd::ttyname(std::io::stdin().as_fd())
