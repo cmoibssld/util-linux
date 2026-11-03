@@ -3,15 +3,15 @@
 // For the full copyright and license information, please view the LICENSE
 // file that was distributed with this source code.
 
-#[cfg(not(unix))]
-use clap::ArgMatches;
 use clap::builder::ValueParser;
 use clap::parser::ValuesRef;
+#[cfg(not(unix))]
+use clap::ArgMatches;
 use clap::{Arg, ArgAction, Command};
 #[cfg(unix)]
 use nix::{
     libc,
-    poll::{PollFd, PollFlags, PollTimeout, poll},
+    poll::{poll, PollFd, PollFlags, PollTimeout},
     unistd,
 };
 use std::env;
@@ -170,7 +170,7 @@ fn get_message(args: ValuesRef<OsString>) -> Result<String, WallError> {
                 #[cfg(target_os = "linux")]
                 return concatenate_message(args);
                 #[cfg(not(target_os = "linux"))]
-                return Err(_e);
+                return Err(e);
             }
             Err(e) => Err(e),
         }
