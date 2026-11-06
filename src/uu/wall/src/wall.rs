@@ -3,16 +3,16 @@
 // For the full copyright and license information, please view the LICENSE
 // file that was distributed with this source code.
 
-#[cfg(any(target_os = "windows", target_os = "openbsd"))]
-use clap::ArgMatches;
 use clap::builder::ValueParser;
 #[cfg(all(unix, not(target_os = "openbsd")))]
 use clap::parser::ValuesRef;
+#[cfg(any(target_os = "windows", target_os = "openbsd"))]
+use clap::ArgMatches;
 use clap::{Arg, ArgAction, Command};
 #[cfg(all(unix, not(target_os = "openbsd")))]
 use nix::{
     errno::Errno,
-    poll::{PollFd, PollFlags, PollTimeout, poll},
+    poll::{poll, PollFd, PollFlags, PollTimeout},
     unistd,
 };
 use std::env;
