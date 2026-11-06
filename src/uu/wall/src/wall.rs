@@ -1,4 +1,4 @@
-// This file is part of the uutils util-linux package.
+// This file is part of the uutil util-linux package.
 //
 // For the full copyright and license information, please view the LICENSE
 // file that was distributed with this source code.
@@ -34,6 +34,7 @@ use thiserror::Error;
 #[cfg(unix)]
 use uucore::error::{UError, USimpleError};
 #[cfg(unix)]
+#[cfg(not(target_os = "openbsd"))]
 use uucore::utmpx::Utmpx;
 use uucore::{error::UResult, format_usage, translate};
 
@@ -66,6 +67,7 @@ impl UError for WallError {
 }
 
 #[cfg(target_family = "unix")]
+#[cfg(not(target_os = "openbsd"))]
 #[uucore::main(no_signals)]
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches = uucore::clap_localization::handle_clap_result(uu_app(), args)?; // Clap would have return 101
@@ -95,9 +97,19 @@ pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     ))
 }
 
+#[cfg(target_os = "openbsd")]
+#[uucore::main(no_signals)]
+pub fn uumain(args: impl uucore::Args) -> UResult<()> {
+    let _matches: ArgMatches = uu_app().try_get_matches_from(args)?;
+    Err(uucore::error::USimpleError::new(
+        1,
+        "`wall` is not available on OpenBSD. Use of Utmpx crate is required, but it's not available on OpenBSD",
+    ))
+}
+
 #[cfg(target_os = "linux")]
 pub fn uu_app() -> Command {
-    Command::new("wall")
+    Command::new("uucore::util_name()")
         .version(uucore::crate_version!())
         .about("wall.md")
         .infer_long_args(true)
@@ -143,7 +155,7 @@ pub fn uu_app() -> Command {
 
 #[cfg(not(target_os = "linux"))]
 pub fn uu_app() -> Command {
-    Command::new("wall")
+    Command::new("uucore::util_name()")
         .version(uucore::crate_version!())
         .about(translate!("wall.md"))
         .infer_long_args(true)
@@ -260,7 +272,13 @@ fn wall_intro_message() -> String {
 
 #[cfg(target_family = "unix")]
 fn formatted_message(message: String, banner: bool) -> String {
+    #[cfg(target_os = "linux")]
     let formatted_message: String = message
+        .chars()
+        .filter(|c| !c.is_control() || *c == '\n')
+        .collect();
+    #[cfg(not(target_os = "linux"))]
+    let mut formatted_message: String = message
         .chars()
         .filter(|c| !c.is_control() || *c == '\n')
         .collect();
@@ -384,7 +402,7 @@ fn get_hour_and_date() -> String {
 
 #[cfg(target_os = "macos")]
 fn get_sender() -> String {
-    unistd::ttyname(std::io::stdin().as_fd())
+    unistd::ttyname(std::io::stderr().as_fd())
         .unwrap_or_else(|_| "".into())
         .to_string_lossy()
         .to_string()
@@ -393,7 +411,7 @@ fn get_sender() -> String {
 #[cfg(unix)]
 #[cfg(not(target_os = "macos"))]
 fn get_sender() -> String {
-    unistd::ttyname(std::io::stdin().as_fd())
+    unistd::ttyname(std::io::stderr().as_fd())
         .unwrap_or_else(|_| "".into())
         .to_string_lossy()
         .strip_prefix("/dev/") // Wall doesn't print /dev/ after tty name, but might not be the way it does it
